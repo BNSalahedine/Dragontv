@@ -463,12 +463,13 @@ function attach(url){
   eng = 'hls'; hlsFatal = 0;
   const h = H = new Hls({
     enableWorker: true, lowLatencyMode: false,
-    maxBufferLength: 40, maxMaxBufferLength: 90, backBufferLength: 30, maxBufferHole: .6,
-    liveSyncDurationCount: 5, liveMaxLatencyDurationCount: 14,
+    maxBufferLength: 30, maxMaxBufferLength: 60, backBufferLength: 20, maxBufferHole: .6,
+    liveSyncDurationCount: 3, liveMaxLatencyDurationCount: 10,
     nudgeOffset: .2, nudgeMaxRetry: 10,
-    manifestLoadingMaxRetry: 4, manifestLoadingRetryDelay: 700,
-    levelLoadingMaxRetry: 6, levelLoadingRetryDelay: 700,
-    fragLoadingMaxRetry: 8, fragLoadingRetryDelay: 600, fragLoadingMaxRetryTimeout: 8000,
+    startLevel: 0, abrEwmaDefaultEstimate: 1500000,
+    manifestLoadingTimeOut: 6000, manifestLoadingMaxRetry: 2, manifestLoadingRetryDelay: 400,
+    levelLoadingTimeOut: 6000, levelLoadingMaxRetry: 4, levelLoadingRetryDelay: 400,
+    fragLoadingTimeOut: 12000, fragLoadingMaxRetry: 6, fragLoadingRetryDelay: 400, fragLoadingMaxRetryTimeout: 6000,
     abrBandWidthFactor: .85, abrBandWidthUpFactor: .6, startFragPrefetch: true
   });
   h.on(Hls.Events.MANIFEST_PARSED, () => { if(H === h){ engSet(host, 'hls'); vd.play().catch(() => {}); } });
@@ -512,6 +513,17 @@ if(lv.length >= 2) setLv(lv);
 }catch(e){}
 }
 function go(c){ return c.url.startsWith('series:') ? openSeries(c.url.slice(7)) : play(c); }
+let sdog = 0;
+function armDog(){
+  clearTimeout(sdog); const tk = token, src = curSrc;
+  sdog = setTimeout(() => {
+    if(!pcur || started || token !== tk || curSrc !== src || userPaused) return;
+    if(!nextServer(true)) recover('timeout');
+  }, 8000);
+}
+function lvLater(url, my){
+  vd.addEventListener('playing', () => { setTimeout(() => { if(my === token) loadLevels(url, my); }, 800); }, { once: true });
+}
 let pcur = null, curSrc = '', att = 0, started = false, stuck = 0, lastT = -1, userPaused = false, recT = 0, mon = 0, pausedAt = 0, hiddenAt = 0;
 function showRe(on, txt){ if(txt) $('pReT').textContent = txt; $('pRe').classList.toggle('on', !!on); }
 function showFail(){
@@ -537,7 +549,7 @@ function useServer(i, auto){
 if(!pcur) return;
 pcur.si = i; curSrc = pcur.servers[i]; att = 0; started = false; stuck = 0; lastT = -1; clearTimeout(recT); recT = 0; E.classList.remove('on');
 showRe(true, (auto ? 'Server not responding — ' : '') + 'Switching to server ' + (i + 1) + '…');
-setSv(); setLv([]); token++; const my = token; reload(); loadLevels(curSrc, my);
+setSv(); setLv([]); token++; const my = token; reload(); lvLater(curSrc, my);
 }
 function nextServer(auto){ if(!pcur || pcur.servers.length < 2 || pcur.tried >= pcur.servers.length) return false; pcur.tried++; useServer((pcur.si + 1) % pcur.servers.length, auto); return true; }
 function setRef(u){ let m = document.querySelector('meta[name=referrer]'); if(!m){ m = document.createElement('meta'); m.name = 'referrer'; document.head.appendChild(m); } m.content = /\/\/6iptv\.s3\./.test(u || '') ? 'no-referrer' : 'strict-origin-when-cross-origin'; }
@@ -545,7 +557,7 @@ function reload(){
 if(!pcur) return;
 const vod = isVod(), t = vd.currentTime; stuck = 0; lastT = -1;
 vd.onerror = null; detach(); vd.removeAttribute('src'); vd.load();
-vd.onerror = onErr; setRef(curSrc || pcur.url); attach(curSrc || pcur.url); P.classList.add('busy');
+vd.onerror = onErr; setRef(curSrc || pcur.url); attach(curSrc || pcur.url); P.classList.add('busy'); armDog();
 if(vod && t > 1) vd.addEventListener('loadedmetadata', () => { try{ vd.currentTime = t; }catch(e){} }, { once: true });
 vd.play().catch(() => {});
 }
@@ -564,7 +576,7 @@ if(vd.paused){ if(!userPaused && started) vd.play().catch(() => {}); stuck = 0; 
 const t = vd.currentTime;
 if(Math.abs(t - lastT) < 0.05 && !vd.seeking) stuck++; else stuck = 0;
 lastT = t;
-if(stuck >= (started ? (eng === 'hls' ? 6 : 3) : 9)) recover('stall');
+if(stuck >= (started ? (eng === 'hls' ? 6 : 3) : 5)) recover('stall');
 }
 vd.addEventListener('playing', () => { started = true; att = 0; stuck = 0; if(pcur) pcur.tried = 1; showRe(false); vd.onerror = onErr; wlGet(); clearTimeout(bestT); const sv = curSrc, nm = pcur && pcur.name; bestT = setTimeout(() => { if(started && pcur && pcur.name === nm && curSrc === sv && !vd.paused) bestSet(nm, sv); }, 15000); });
 vd.addEventListener('pause', wlRel);
@@ -585,7 +597,7 @@ P.classList.add('open', 'busy'); P.classList.remove('is-live', 'is-vod'); showCt
 vd.onerror = null; detach(); vd.removeAttribute('src'); vd.load(); setLv([]);
 vd.onerror = onErr;   
 setRef(curSrc); attach(curSrc); vd.play().catch(() => {});
-setSv(); loadLevels(curSrc, my);
+armDog(); setSv(); lvLater(curSrc, my);
 clearInterval(mon); mon = setInterval(tick, 2000);
 }
 function toggle(){
@@ -824,7 +836,7 @@ u = Math.max(0, (t - vx.t0) / vx.dur);
 if(u >= .5 && !vx.sw){ vx.sw = true; swap(vx.to); G && G.reset(); }
 if(u >= 1){ vx.on = false; vc.style.display = 'none'; u = -1; } else drawVx(u);
 }
-G && G.frame(t, dt, u);
+if(G && (u >= 0 || (!P.classList.contains('open') && !$('home').classList.contains('hide')))) G.frame(t, dt, u);
 requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
