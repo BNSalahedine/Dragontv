@@ -123,6 +123,8 @@ http://dalive.site:8080/live/Pepe/1234/479366.m3u8
 http://dalive.site:8080/live/Pepe/1234/479369.m3u8
 #EXTINF:-1 group-title="Documentary",Nat Geo Wild
 http://dalive.site:8080/live/Pepe/1234/416613.m3u8
+#EXTINF:-1 group-title="Documentary",Nat Geo Wild
+https://fs.uplink.kz/nat_geo_wild/mono.m3u8?token=onlinetv
 #EXTINF:-1 group-title="Kids",Amou Yazid
 http://mkstream.servehttp.com:1940/AmouYazid/ay1/playlist.m3u8
 #EXTINF:-1 group-title="Documentary",Adventure Earth
@@ -136,7 +138,9 @@ https://edge22.358598.ir.cdn.ir/hls2/bein1.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 1
 https://6iptv.s3.us-east-1.amazonaws.com/bein1/720p/manifest.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 1
-https://yll6.akbarnews.store/cdn/master.m3u8
+https://ec.koooracity.press/sune1.m3u8
+#EXTINF:-1 group-title="Sports",Alwan Sports
+https://m.yalla4live.live/masn2.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 2
 https://6iptv.s3.us-east-1.amazonaws.com/bein2/720p/manifest.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 2
@@ -145,6 +149,8 @@ https://bplive2.akbarnews.store/cdn/master.m3u8
 https://6iptv.s3.us-east-1.amazonaws.com/bein3/720p/manifest.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 4
 https://6iptv.s3.us-east-1.amazonaws.com/bein4/720p/manifest.m3u8
+#EXTINF:-1 group-title="Sports",beIN Sports 4
+https://ec.koooracity.press/sune1.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 5
 https://6iptv.s3.us-east-1.amazonaws.com/bein5/720p/manifest.m3u8
 #EXTINF:-1 group-title="Sports",beIN Sports 6
@@ -173,6 +179,10 @@ https://2sisi.s3.us-east-2.amazonaws.com/ad2/master.m3u8
 https://2sisi.s3.us-east-2.amazonaws.com/apple/master.m3u8
 #EXTINF:-1 group-title="Movies",MBC Action
 https://2sisi.s3.us-east-2.amazonaws.com/shahid1/master.m3u8
+#EXTINF:-1 group-title="Movies",MBC Action
+https://2cdn.syria-player.info/hls1/shahid2.m3u8
+#EXTINF:-1 group-title="Movies",MBC Action
+https://6iptv.s3.us-east-1.amazonaws.com/shahid2/720p/manifest.m3u8
 #EXTINF:-1 group-title="Movies",Aflam HD
 https://shd-amg-fast.edgenextcdn.net/tx001/playlist.m3u8
 #EXTINF:-1 group-title="Entertainment",Mix TV
@@ -181,6 +191,8 @@ https://ml-pull-hwc.myco.io/MixTV/hls/index.m3u8
 https://amg01796-amg01796c19-rakuten-gb-7486.playouts.now.amagi.tv/playlist/amg01796-fastmediafast-yugioh2en-rakutengb/playlist.m3u8
 #EXTINF:-1 group-title="Cartoons",Spacetoon Arabic
 https://live-uae-next.spacetoongo.com/ST_MENA_NEXT/hls/r9p2hjipmw2kl.m3u8
+#EXTINF:-1 group-title="Entertainment",Pluto TV
+https://jmp2.uk/plu-5ddf8ea0d000120009bcad83.m3u8
 `;
 const $ = id => document.getElementById(id);
 function mergeServers(list){ const map = new Map(), out = []; for(const c of list){ const k = c.name.trim().toLowerCase(); if(map.has(k)){ const m = map.get(k); if(!m.servers.includes(c.url)) m.servers.push(c.url); } else { c.servers = [c.url]; map.set(k, c); out.push(c); } } return out; }
