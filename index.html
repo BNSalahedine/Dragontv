@@ -364,8 +364,10 @@ let H = null, eng = 'native', hlsFatal = 0, bestT = 0, wl = null;
 const hostOf = u => { try{ return new URL(u, location.href).host; }catch(e){ return ''; } };
 const jget = k => { try{ return JSON.parse(localStorage.getItem(k) || '{}') || {}; }catch(e){ return {}; } };
 const jset = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
-const engGet = h => { const v = jget('tn_eng')[h]; return v && Date.now() - v.t < 6 * 36e5 ? v.e : ''; };
-const engSet = (h, e) => { const m = jget('tn_eng'); m[h] = { e, t: Date.now() }; jset('tn_eng', m); };
+try{ localStorage.removeItem('tn_eng'); }catch(e){}
+const ENG = {};
+const engGet = h => ENG[h] || '';
+const engSet = (h, e) => { ENG[h] = e; };
 const bestGet = n => jget('tn_best')[n] || '';
 const bestSet = (n, u) => { const m = jget('tn_best'); m[n] = u; jset('tn_best', m); };
 const wlGet = async () => { try{ if('wakeLock' in navigator && !wl && !document.hidden){ wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); } }catch(e){} };
@@ -379,13 +381,13 @@ function attach(url){
   eng = 'hls'; hlsFatal = 0;
   const h = H = new Hls({
     enableWorker: true, lowLatencyMode: false,
-    maxBufferLength: 30, maxMaxBufferLength: 60, backBufferLength: 20, maxBufferHole: .6,
-    liveSyncDurationCount: 3, liveMaxLatencyDurationCount: 10,
-    nudgeOffset: .2, nudgeMaxRetry: 10,
+    maxBufferLength: 40, maxMaxBufferLength: 90, backBufferLength: 30, maxBufferHole: .8,
+    liveSyncDurationCount: 5, liveMaxLatencyDurationCount: 14,
+    nudgeOffset: .2, nudgeMaxRetry: 12,
     startLevel: 0, abrEwmaDefaultEstimate: 1500000,
-    manifestLoadingTimeOut: 6000, manifestLoadingMaxRetry: 2, manifestLoadingRetryDelay: 400,
-    levelLoadingTimeOut: 6000, levelLoadingMaxRetry: 4, levelLoadingRetryDelay: 400,
-    fragLoadingTimeOut: 12000, fragLoadingMaxRetry: 6, fragLoadingRetryDelay: 400, fragLoadingMaxRetryTimeout: 6000,
+    manifestLoadingTimeOut: 10000, manifestLoadingMaxRetry: 4, manifestLoadingRetryDelay: 500,
+    levelLoadingTimeOut: 10000, levelLoadingMaxRetry: 6, levelLoadingRetryDelay: 500,
+    fragLoadingTimeOut: 20000, fragLoadingMaxRetry: 8, fragLoadingRetryDelay: 500, fragLoadingMaxRetryTimeout: 8000,
     abrBandWidthFactor: .85, abrBandWidthUpFactor: .6, startFragPrefetch: true
   });
   h.on(Hls.Events.MANIFEST_PARSED, () => { if(H === h){ engSet(host, 'hls'); vd.play().catch(() => {}); } });
@@ -435,7 +437,7 @@ function armDog(){
   sdog = setTimeout(() => {
     if(!pcur || started || token !== tk || curSrc !== src || userPaused) return;
     if(!nextServer(true)) recover('timeout');
-  }, 8000);
+  }, 10000);
 }
 function lvLater(url, my){
   vd.addEventListener('playing', () => { setTimeout(() => { if(my === token) loadLevels(url, my); }, 800); }, { once: true });
@@ -491,6 +493,10 @@ if(vd.paused){ if(!userPaused && started) vd.play().catch(() => {}); stuck = 0; 
 const t = vd.currentTime;
 if(Math.abs(t - lastT) < 0.05 && !vd.seeking) stuck++; else stuck = 0;
 lastT = t;
+if(started && stuck === 2){
+  if(eng === 'hls' && H){ try{ H.startLoad(-1); const lp = H.liveSyncPosition; if(lp && isFinite(lp) && lp > vd.currentTime + .5) vd.currentTime = lp; else vd.currentTime += .1; }catch(e){} }
+  else if(eng === 'native' && window.Hls && Hls.isSupported() && /\.m3u8(\?|$)/i.test(curSrc) && !pcur.hlsBack){ pcur.hlsBack = 1; ENG[hostOf(curSrc)] = 'hls'; attach(curSrc); vd.play().catch(() => {}); return; }
+}
 if(stuck >= (started ? (eng === 'hls' ? 6 : 3) : 5)) recover('stall');
 }
 vd.addEventListener('playing', () => { started = true; att = 0; stuck = 0; if(pcur) pcur.tried = 1; showRe(false); vd.onerror = onErr; wlGet(); clearTimeout(bestT); const sv = curSrc, nm = pcur && pcur.name; bestT = setTimeout(() => { if(started && pcur && pcur.name === nm && curSrc === sv && !vd.paused) bestSet(nm, sv); }, 15000); });
