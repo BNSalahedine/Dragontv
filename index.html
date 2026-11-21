@@ -2,6 +2,7 @@
 <html lang="en" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tinnin TV</title>
 <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
@@ -333,7 +334,8 @@ const vd = $('vid'), stg = $('stage'), P = $('player'), qm = $('qm'), E = $('pEr
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
 const fmt = t => { if(!isFinite(t) || t < 0) t = 0; const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = Math.floor(t % 60); return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
 const isVod = () => isFinite(vd.duration) && vd.duration > 30;
-function kick(){ if(!P.classList.contains('open') || vd.paused) return; vd.style.opacity = '.999'; requestAnimationFrame(() => requestAnimationFrame(() => { vd.style.opacity = ''; })); }
+const IS_WV = /;\s*wv\)/.test(navigator.userAgent);
+function kick(){ if(!IS_WV || !P.classList.contains('open') || vd.paused) return; vd.style.opacity = '.999'; requestAnimationFrame(() => requestAnimationFrame(() => { vd.style.opacity = ''; })); }
 function showCtl(){ P.classList.add('ui'); clearTimeout(hideT); if(!vd.paused && !qm.classList.contains('open') && !$('svm').classList.contains('open') && !$('pVol').classList.contains('open')) hideT = setTimeout(() => { P.classList.remove('ui'); setTimeout(kick, 520); }, 3000); }
 function hint(txt, side){ const h = $('pHint'); h.textContent = txt; h.style.left = side < 0 ? '12%' : side > 0 ? 'auto' : '50%'; h.style.right = side > 0 ? '12%' : 'auto'; h.style.marginLeft = side === 0 ? '-40px' : '0'; h.classList.add('show'); clearTimeout(h._t); h._t = setTimeout(() => h.classList.remove('show'), 700); }
 function sync(){
@@ -393,6 +395,7 @@ function attach(url){
   h.on(Hls.Events.MANIFEST_PARSED, () => { if(H === h){ engSet(host, 'hls'); vd.play().catch(() => {}); } });
   h.on(Hls.Events.FRAG_BUFFERED, () => { if(H === h) hlsFatal = 0; });
   h.on(Hls.Events.ERROR, (ev, d) => {
+    window.__lastErr = d.details + (d.response && d.response.code ? ' ' + d.response.code : '');
     if(H !== h || !d.fatal) return;
     const E2 = Hls.ErrorDetails;
     if(!started && (d.details === E2.MANIFEST_LOAD_ERROR || d.details === E2.MANIFEST_LOAD_TIMEOUT || d.details === E2.MANIFEST_PARSING_ERROR)){ engSet(host, 'native'); nativeLoad(url); vd.play().catch(() => {}); return; }
@@ -437,7 +440,7 @@ function armDog(){
   sdog = setTimeout(() => {
     if(!pcur || started || token !== tk || curSrc !== src || userPaused) return;
     if(!nextServer(true)) recover('timeout');
-  }, 8000);
+  }, 15000);
 }
 function lvLater(url, my){
   vd.addEventListener('playing', () => { setTimeout(() => { if(my === token) loadLevels(url, my); }, 800); }, { once: true });
@@ -469,7 +472,7 @@ showRe(true, (auto ? 'Server not responding — ' : '') + 'Switching to server '
 setSv(); setLv([]); token++; const my = token; reload(); lvLater(curSrc, my);
 }
 function nextServer(auto){ if(!pcur || pcur.servers.length < 2 || pcur.tried >= pcur.servers.length) return false; pcur.tried++; useServer((pcur.si + 1) % pcur.servers.length, auto); return true; }
-function setRef(u){ let m = document.querySelector('meta[name=referrer]'); if(!m){ m = document.createElement('meta'); m.name = 'referrer'; document.head.appendChild(m); } m.content = /\/\/6iptv\.s3\./.test(u || '') ? 'no-referrer' : 'strict-origin-when-cross-origin'; }
+function setRef(u){ let m = document.querySelector('meta[name=referrer]'); if(!m){ m = document.createElement('meta'); m.name = 'referrer'; document.head.appendChild(m); } m.content = 'no-referrer'; }
 function reload(){
 if(!pcur) return;
 const vod = isVod(), t = vd.currentTime; stuck = 0; lastT = -1;
@@ -480,12 +483,14 @@ vd.play().catch(() => {});
 }
 function recover(why){
 if(!pcur || recT) return;
+window.__why = why + (window.__lastErr ? ' / ' + window.__lastErr : '');
 att++;
 if(!started && att > 3){ if(nextServer(true)) return; showRe(false); showFail(); return; }   
 if(started && att >= 4 && pcur.servers.length > 1){ pcur.tried = 1; useServer((pcur.si + 1) % pcur.servers.length, true); return; }   
-showRe(true, navigator.onLine ? 'Stream interrupted — Reconnecting automatically…' : 'No connection — Waiting for network…');
+showRe(true, navigator.onLine ? 'Stream interrupted — Reconnecting automatically… (' + window.__why + ')' : 'No connection — Waiting for network…');
 recT = setTimeout(() => { recT = 0; reload(); }, Math.min(att * 1500, 9000));
 }
+function bufAhead(){ try{ const b = vd.buffered, t = vd.currentTime; for(let i = 0; i < b.length; i++) if(t >= b.start(i) - .3 && t <= b.end(i)) return b.end(i) - t; }catch(e){} return 0; }
 function tick(){
 if(P.classList.contains('open') && !P.classList.contains('ui') && !vd.paused) kick();
 if(!pcur || !P.classList.contains('open') || E.classList.contains('on') || recT) return;
@@ -493,7 +498,7 @@ if(vd.paused){ if(!userPaused && started) vd.play().catch(() => {}); stuck = 0; 
 const t = vd.currentTime;
 if(Math.abs(t - lastT) < 0.05 && !vd.seeking) stuck++; else stuck = 0;
 lastT = t;
-if(stuck >= (started ? (eng === 'hls' ? 6 : 3) : 5)) recover('stall');
+if(stuck >= (started ? (eng === 'hls' ? 8 : 6) : 8)){ if(started && vd.readyState >= 3 && bufAhead() > 2) { stuck = 0; return; } recover('stall'); }
 }
 vd.addEventListener('playing', () => { started = true; att = 0; stuck = 0; if(pcur) pcur.tried = 1; showRe(false); vd.onerror = onErr; wlGet(); clearTimeout(bestT); const sv = curSrc, nm = pcur && pcur.name; bestT = setTimeout(() => { if(started && pcur && pcur.name === nm && curSrc === sv && !vd.paused) bestSet(nm, sv); }, 15000); });
 vd.addEventListener('pause', wlRel);
